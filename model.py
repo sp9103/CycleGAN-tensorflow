@@ -6,6 +6,7 @@ from glob import glob
 import tensorflow as tf
 import numpy as np
 from collections import namedtuple
+from data_factory.dataset_factory import ImageCollector
 
 from Experiment.CycleGAN.module import *
 from Experiment.CycleGAN.utils import *
@@ -125,6 +126,12 @@ class cyclegan(object):
         self.g_optim = tf.train.AdamOptimizer(self.lr, beta1=args.beta1) \
             .minimize(self.g_loss, var_list=self.g_vars)
 
+        datasetA = ImageCollector("C:\\Users\\incorl\\Desktop\\GraspGAN\\domain_adaptation\\pixel_domain_adaptation\\simul_dataset", 1, 100, self.batch_size, bCollectSeg=True)  # Simul data A
+        datasetB = ImageCollector("C:\\Users\\incorl\\Desktop\\GraspGAN\\domain_adaptation\\pixel_domain_adaptation\\real_dataset", 1, 100, self.batch_size)  # Real data B
+        
+        datasetA.StartLoadData()
+        datasetB.StartLoadData()
+
         init_op = tf.global_variables_initializer()
         self.sess.run(init_op)
         self.writer = tf.summary.FileWriter("./logs", self.sess.graph)
@@ -139,16 +146,14 @@ class cyclegan(object):
                 print(" [!] Load failed...")
 
         for epoch in range(args.epoch):
-            dataA = glob('./datasets/{}/*.*'.format(self.dataset_dir + '/trainA'))
-            dataB = glob('./datasets/{}/*.*'.format(self.dataset_dir + '/trainB'))
-            np.random.shuffle(dataA)
-            np.random.shuffle(dataB)
-            batch_idxs = min(min(len(dataA), len(dataB)), args.train_size) // self.batch_size
+            batch_idxs = min(min(datasetA.getDataCnt(), datasetB.getDataCnt()), args.train_size) // self.batch_size
             lr = args.lr if epoch < args.epoch_step else args.lr*(args.epoch-epoch)/(args.epoch-args.epoch_step)
 
             for idx in range(0, batch_idxs):
-                batch_files = list(zip(dataA[idx * self.batch_size:(idx + 1) * self.batch_size],
-                                       dataB[idx * self.batch_size:(idx + 1) * self.batch_size]))
+                dataA = datasetA.getLoadedData()
+                dataB = datasetB.getLoadedData()
+                dataA = np.concatenate((dataA[1], dataA[2]), axis=3)
+                batch_files = list(zip(dataA, dataB[1]))
                 batch_images = [load_train_data(batch_file, args.load_size, args.fine_size) for batch_file in batch_files]
                 batch_images = np.array(batch_images).astype(np.float32)
 
