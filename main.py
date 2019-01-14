@@ -1,9 +1,8 @@
 import argparse
-import os, sys
-sys.path.append(os.path.dirname("../../../"))
+import os
 import tensorflow as tf
 tf.set_random_seed(19)
-from Experiment.CycleGAN.model import cyclegan
+from model import cyclegan
 
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('--dataset_dir', dest='dataset_dir', default='horse2zebra', help='path of the dataset')

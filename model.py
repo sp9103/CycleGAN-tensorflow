@@ -1,6 +1,6 @@
 from __future__ import division
 import os, sys
-sys.path.append(os.path.dirname("../../../"))
+sys.path.insert(0, '../../')
 import time
 from glob import glob
 import tensorflow as tf
@@ -8,8 +8,8 @@ import numpy as np
 from collections import namedtuple
 from data_factory.dataset_factory import ImageCollector
 
-from Experiment.CycleGAN.module import *
-from Experiment.CycleGAN.utils import *
+from module import *
+from utils import *
 
 class cyclegan(object):
     def __init__(self, sess, args):
