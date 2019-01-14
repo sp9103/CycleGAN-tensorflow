@@ -11,6 +11,7 @@ try:
     _imread = scipy.misc.imread
 except AttributeError:
     from imageio import imread as _imread
+import cv2
 
 pp = pprint.PrettyPrinter()
 
@@ -52,8 +53,10 @@ def load_train_data(image, load_size=286, fine_size=256, is_testing=False):
     img_A = image[0]
     img_B = image[1]
     if not is_testing:
-        img_A = scipy.misc.imresize(img_A, [load_size, load_size])
-        img_B = scipy.misc.imresize(img_B, [load_size, load_size])
+        #img_A = scipy.misc.imresize(img_A, [load_size, load_size])
+        #img_B = scipy.misc.imresize(img_B, [load_size, load_size])
+        img_A = cv2.resize(img_A, (load_size, load_size))
+        img_B = cv2.resize(img_B, (load_size, load_size))
         h1 = int(np.ceil(np.random.uniform(1e-2, load_size-fine_size)))
         w1 = int(np.ceil(np.random.uniform(1e-2, load_size-fine_size)))
         img_A = img_A[h1:h1+fine_size, w1:w1+fine_size]
@@ -64,11 +67,13 @@ def load_train_data(image, load_size=286, fine_size=256, is_testing=False):
         #     img_A = np.fliplr(img_A)
         #     img_B = np.fliplr(img_B)
     else:
-        img_A = scipy.misc.imresize(img_A, [fine_size, fine_size])
-        img_B = scipy.misc.imresize(img_B, [fine_size, fine_size])
+        # img_A = scipy.misc.imresize(img_A, [fine_size, fine_size])
+        # img_B = scipy.misc.imresize(img_B, [fine_size, fine_size])
+        img_A = cv2.resize(img_A, (fine_size, fine_size))
+        img_B = cv2.resize(img_B, (fine_size, fine_size))
 
-    img_A = img_A/127.5 - 1.
-    img_B = img_B/127.5 - 1.
+    # img_A = img_A/127.5 - 1.
+    # img_B = img_B/127.5 - 1.
 
     img_AB = np.concatenate((img_A, img_B), axis=2)
     # img_AB shape: (fine_size, fine_size, input_c_dim + output_c_dim)

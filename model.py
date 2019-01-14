@@ -126,11 +126,11 @@ class cyclegan(object):
         self.g_optim = tf.train.AdamOptimizer(self.lr, beta1=args.beta1) \
             .minimize(self.g_loss, var_list=self.g_vars)
 
-        datasetA = ImageCollector("C:\\Users\\incorl\\Desktop\\GraspGAN\\domain_adaptation\\pixel_domain_adaptation\\simul_dataset", 1, 100, self.batch_size, bCollectSeg=True)  # Simul data A
-        datasetB = ImageCollector("C:\\Users\\incorl\\Desktop\\GraspGAN\\domain_adaptation\\pixel_domain_adaptation\\real_dataset", 1, 100, self.batch_size)  # Real data B
+        self.datasetA = ImageCollector("C:\\Users\\incorl\\Desktop\\GraspGAN\\domain_adaptation\\pixel_domain_adaptation\\simul_dataset", 1, 100, self.batch_size, bCollectSeg=True)  # Simul data A
+        self.datasetB = ImageCollector("C:\\Users\\incorl\\Desktop\\GraspGAN\\domain_adaptation\\pixel_domain_adaptation\\real_dataset", 1, 100, self.batch_size)  # Real data B
         
-        datasetA.StartLoadData()
-        datasetB.StartLoadData()
+        self.datasetA.StartLoadData()
+        self.datasetB.StartLoadData()
 
         init_op = tf.global_variables_initializer()
         self.sess.run(init_op)
@@ -146,12 +146,12 @@ class cyclegan(object):
                 print(" [!] Load failed...")
 
         for epoch in range(args.epoch):
-            batch_idxs = min(min(datasetA.getDataCnt(), datasetB.getDataCnt()), args.train_size) // self.batch_size
+            batch_idxs = min(min(self.datasetA.getDataCnt(), self.datasetB.getDataCnt()), args.train_size) // self.batch_size
             lr = args.lr if epoch < args.epoch_step else args.lr*(args.epoch-epoch)/(args.epoch-args.epoch_step)
 
             for idx in range(0, batch_idxs):
-                dataA = datasetA.getLoadedData()
-                dataB = datasetB.getLoadedData()
+                dataA = self.datasetA.getLoadedData()
+                dataB = self.datasetB.getLoadedData()
                 dataA = np.concatenate((dataA[1], dataA[2]), axis=3)
                 batch_files = list(zip(dataA, dataB[1]))
                 batch_images = [load_train_data(batch_file, args.load_size, args.fine_size) for batch_file in batch_files]
@@ -210,11 +210,10 @@ class cyclegan(object):
             return False
 
     def sample_model(self, sample_dir, epoch, idx):
-        dataA = glob('./datasets/{}/*.*'.format(self.dataset_dir + '/testA'))
-        dataB = glob('./datasets/{}/*.*'.format(self.dataset_dir + '/testB'))
-        np.random.shuffle(dataA)
-        np.random.shuffle(dataB)
-        batch_files = list(zip(dataA[:self.batch_size], dataB[:self.batch_size]))
+        dataA = self.datasetA.getLoadedData()
+        dataB = self.datasetB.getLoadedData()
+        dataA = np.concatenate((dataA[1], dataA[2]), axis=3)
+        batch_files = list(zip(dataA, dataB[1]))
         sample_images = [load_train_data(batch_file, is_testing=True) for batch_file in batch_files]
         sample_images = np.array(sample_images).astype(np.float32)
 
@@ -222,7 +221,11 @@ class cyclegan(object):
             [self.fake_A, self.fake_B],
             feed_dict={self.real_data: sample_images}
         )
-        save_images(fake_A, [self.batch_size, 1],
+
+
+        images = np.split(sample_images, 2, axis=3)
+
+        save_images(images[0], [self.batch_size, 1],
                     './{}/A_{:02d}_{:04d}.jpg'.format(sample_dir, epoch, idx))
         save_images(fake_B, [self.batch_size, 1],
                     './{}/B_{:02d}_{:04d}.jpg'.format(sample_dir, epoch, idx))
