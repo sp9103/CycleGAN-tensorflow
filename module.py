@@ -26,7 +26,7 @@ def discriminator(image, options, reuse=False, name="discriminator"):
         return h4
 
 
-def generator_unet(image, options, reuse=False, name="generator"):
+def generator_unet(image, options, output_dim, reuse=False, name="generator"):
 
     dropout_rate = 0.5 if options.is_training else 1.0
     with tf.variable_scope(name):
@@ -85,13 +85,13 @@ def generator_unet(image, options, reuse=False, name="generator"):
         d7 = tf.concat([instance_norm(d7, 'g_bn_d7'), e1], 3)
         # d7 is (128 x 128 x self.gf_dim*1*2)
 
-        d8 = deconv2d(tf.nn.relu(d7), options.output_c_dim, name='g_d8')
+        d8 = deconv2d(tf.nn.relu(d7), output_dim, name='g_d8')
         # d8 is (256 x 256 x output_c_dim)
 
         return tf.nn.tanh(d8)
 
 
-def generator_resnet(image, options, reuse=False, name="generator"):
+def generator_resnet(image, options, output_dim, reuse=False, name="generator"):
 
     with tf.variable_scope(name):
         # image is 256 x 256 x input_c_dim
@@ -131,7 +131,7 @@ def generator_resnet(image, options, reuse=False, name="generator"):
         d2 = deconv2d(d1, options.gf_dim, 3, 2, name='g_d2_dc')
         d2 = tf.nn.relu(instance_norm(d2, 'g_d2_bn'))
         d2 = tf.pad(d2, [[0, 0], [3, 3], [3, 3], [0, 0]], "REFLECT")
-        pred = tf.nn.tanh(conv2d(d2, options.output_c_dim, 7, 1, padding='VALID', name='g_pred_c'))
+        pred = tf.nn.tanh(conv2d(d2, output_dim, 7, 1, padding='VALID', name='g_pred_c'))
 
         return pred
 
