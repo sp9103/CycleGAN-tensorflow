@@ -224,11 +224,13 @@ class cyclegan(object):
         )
 
 
-        images = np.split(sample_images, [3, 4], axis=3)
+        images = np.split(sample_images, [3], axis=3)
 
-        save_images(images[0], [self.batch_size, 1],
+        concat_B = np.concatenate((images[0], fake_B), axis=2)
+        concat_A = np.concatenate((images[1], fake_A), axis=2)
+        save_images(concat_A, [self.batch_size, 1],
                     './{}/A_{:02d}_{:04d}.jpg'.format(sample_dir, epoch, idx))
-        save_images(fake_B, [self.batch_size, 1],
+        save_images(concat_B, [self.batch_size, 1],
                     './{}/B_{:02d}_{:04d}.jpg'.format(sample_dir, epoch, idx))
 
     def test(self, args):
