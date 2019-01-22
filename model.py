@@ -56,13 +56,12 @@ class cyclegan(object):
         self.fake_A = self.generator(self.real_B, self.options, self.A_dim, True, name="generatorB2A")
         self.fake_B_ = self.generator(self.fake_A, self.options, self.B_dim, True, name="generatorA2B")
 
-        self.DB_fake1 = self.discriminator(self.fake_B, self.options, reuse=False, name="discriminatorB1", layer=2)
-        self.DA_fake1 = self.discriminator(self.fake_A, self.options, reuse=False, name="discriminatorA1", layer=2)
-        self.DB_fake2 = self.discriminator(self.fake_B, self.options, reuse=False, name="discriminatorB2", layer=3)
-        self.DA_fake2 = self.discriminator(self.fake_A, self.options, reuse=False, name="discriminatorA2", layer=3)
-        self.DB_fake3 = self.discriminator(self.fake_B, self.options, reuse=False, name="discriminatorB3", layer=4)
-        self.DA_fake3 = self.discriminator(self.fake_A, self.options, reuse=False, name="discriminatorA3", layer=4)
-
+        self.DB_fake1 = self.discriminator(self.fake_B, self.options, reuse=False, name="discriminatorB1", layers=1)
+        self.DA_fake1 = self.discriminator(self.fake_A, self.options, reuse=False, name="discriminatorA1", layers=1)
+        self.DB_fake2 = self.discriminator(self.fake_B, self.options, reuse=False, name="discriminatorB2", layers=2)
+        self.DA_fake2 = self.discriminator(self.fake_A, self.options, reuse=False, name="discriminatorA2", layers=2)
+        self.DB_fake3 = self.discriminator(self.fake_B, self.options, reuse=False, name="discriminatorB3", layers=3)
+        self.DA_fake3 = self.discriminator(self.fake_A, self.options, reuse=False, name="discriminatorA3", layers=3)
 
         self.g_loss_a2b = self.criterionGAN(self.DB_fake1, tf.ones_like(self.DB_fake1)) \
             + self.criterionGAN(self.DB_fake2, tf.ones_like(self.DB_fake2)) \
@@ -78,8 +77,8 @@ class cyclegan(object):
             + self.criterionGAN(self.DA_fake2, tf.ones_like(self.DA_fake2)) \
             + self.criterionGAN(self.DA_fake3, tf.ones_like(self.DA_fake3)) \
             + self.criterionGAN(self.DB_fake1, tf.ones_like(self.DB_fake1)) \
-            + self.criterionGAN(self.DA_fake2, tf.ones_like(self.DA_fake2)) \
-            + self.criterionGAN(self.DA_fake3, tf.ones_like(self.DA_fake3)) \
+            + self.criterionGAN(self.DB_fake2, tf.ones_like(self.DB_fake2)) \
+            + self.criterionGAN(self.DB_fake3, tf.ones_like(self.DB_fake3)) \
             + self.L1_lambda * abs_criterion(self.real_A, self.fake_A_) \
             + self.L1_lambda * abs_criterion(self.real_B, self.fake_B_)
 
@@ -89,18 +88,18 @@ class cyclegan(object):
         self.fake_B_sample = tf.placeholder(tf.float32,
                                             [None, self.image_size, self.image_size,
                                              self.B_dim], name='fake_B_sample')
-        self.DB_real1 = self.discriminator(self.real_B, self.options, reuse=True, name="discriminatorB1", layer=2)
-        self.DA_real1 = self.discriminator(self.real_A, self.options, reuse=True, name="discriminatorA1", layer=2)
-        self.DB_real2 = self.discriminator(self.real_B, self.options, reuse=True, name="discriminatorB2", layer=3)
-        self.DA_real2 = self.discriminator(self.real_A, self.options, reuse=True, name="discriminatorA2", layer=3)
-        self.DB_real3 = self.discriminator(self.real_B, self.options, reuse=True, name="discriminatorB3", layer=4)
-        self.DA_real3 = self.discriminator(self.real_A, self.options, reuse=True, name="discriminatorA3", layer=4)
-        self.DB_fake_sample1 = self.discriminator(self.fake_B_sample, self.options, reuse=True, name="discriminatorB1", layer=2)
-        self.DA_fake_sample1 = self.discriminator(self.fake_A_sample, self.options, reuse=True, name="discriminatorA1", layer=2)
-        self.DB_fake_sample2 = self.discriminator(self.fake_B_sample, self.options, reuse=True, name="discriminatorB2", layer=3)
-        self.DA_fake_sample2 = self.discriminator(self.fake_A_sample, self.options, reuse=True, name="discriminatorA2", layer=3)
-        self.DB_fake_sample3 = self.discriminator(self.fake_B_sample, self.options, reuse=True, name="discriminatorB3", layer=4)
-        self.DA_fake_sample3 = self.discriminator(self.fake_A_sample, self.options, reuse=True, name="discriminatorA3", layer=4)
+        self.DB_real1 = self.discriminator(self.real_B, self.options, reuse=True, name="discriminatorB1", layers=1)
+        self.DA_real1 = self.discriminator(self.real_A, self.options, reuse=True, name="discriminatorA1", layers=1)
+        self.DB_real2 = self.discriminator(self.real_B, self.options, reuse=True, name="discriminatorB2", layers=2)
+        self.DA_real2 = self.discriminator(self.real_A, self.options, reuse=True, name="discriminatorA2", layers=2)
+        self.DB_real3 = self.discriminator(self.real_B, self.options, reuse=True, name="discriminatorB3", layers=3)
+        self.DA_real3 = self.discriminator(self.real_A, self.options, reuse=True, name="discriminatorA3", layers=3)
+        self.DB_fake_sample1 = self.discriminator(self.fake_B_sample, self.options, reuse=True, name="discriminatorB1", layers=1)
+        self.DA_fake_sample1 = self.discriminator(self.fake_A_sample, self.options, reuse=True, name="discriminatorA1", layers=1)
+        self.DB_fake_sample2 = self.discriminator(self.fake_B_sample, self.options, reuse=True, name="discriminatorB2", layers=2)
+        self.DA_fake_sample2 = self.discriminator(self.fake_A_sample, self.options, reuse=True, name="discriminatorA2", layers=2)
+        self.DB_fake_sample3 = self.discriminator(self.fake_B_sample, self.options, reuse=True, name="discriminatorB3", layers=3)
+        self.DA_fake_sample3 = self.discriminator(self.fake_A_sample, self.options, reuse=True, name="discriminatorA3", layers=3)
 
         self.db_loss_real = self.criterionGAN(self.DB_real1, tf.ones_like(self.DB_real1)) \
             + self.criterionGAN(self.DB_real2, tf.ones_like(self.DB_real2)) \
@@ -157,8 +156,8 @@ class cyclegan(object):
         self.g_optim = tf.train.AdamOptimizer(self.lr, beta1=args.beta1) \
             .minimize(self.g_loss, var_list=self.g_vars)
 
-        self.datasetA = ImageCollector("C:\\Users\\incorl\\Desktop\\GraspGAN\\domain_adaptation\\pixel_domain_adaptation\\simul_dataset", 1, 100, self.batch_size, bCollectSeg=True)  # Simul data A
-        self.datasetB = ImageCollector("C:\\Users\\incorl\\Desktop\\GraspGAN\\domain_adaptation\\pixel_domain_adaptation\\real_dataset", 1, 100, self.batch_size)  # Real data B
+        self.datasetB = ImageCollector("C:\\Users\\incorl\\Desktop\\GraspGAN\\real_dataset_v2", 1, 100, self.batch_size)  # Real data B
+        self.datasetA = ImageCollector("C:\\Users\\incorl\\Desktop\\GraspGAN\\simul_dataset_v2", 1, 100, self.batch_size, bCollectSeg=True)  # Simul data A
         
         self.datasetA.StartLoadData()
         self.datasetB.StartLoadData()
@@ -183,9 +182,9 @@ class cyclegan(object):
             for idx in range(0, batch_idxs):
                 dataA = self.datasetA.getLoadedData()
                 dataB = self.datasetB.getLoadedData()
-                dataA = np.concatenate((dataA[1], dataA[2]), axis=3)
-                batch_files = list(zip(dataA, dataB[1]))
-                batch_images = [load_train_data(batch_file, args.load_size, args.fine_size) for batch_file in batch_files]
+                # dataA = np.concatenate((dataA[1], dataA[2]), axis=3)
+                batch_files = list(zip(dataA[1], dataB[1]))
+                batch_images = [load_train_data(batch_file, args.load_size, args.fine_size, is_testing=True) for batch_file in batch_files]
                 batch_images = np.array(batch_images).astype(np.float32)
 
                 # Update G network and record fake outputs
@@ -243,8 +242,8 @@ class cyclegan(object):
     def sample_model(self, sample_dir, epoch, idx):
         dataA = self.datasetA.getLoadedData()
         dataB = self.datasetB.getLoadedData()
-        dataA = np.concatenate((dataA[1], dataA[2]), axis=3)
-        batch_files = list(zip(dataA, dataB[1]))
+        # dataA = np.concatenate((dataA[1], dataA[2]), axis=3)
+        batch_files = list(zip(dataA[1], dataB[1]))
         sample_images = [load_train_data(batch_file, is_testing=True) for batch_file in batch_files]
         sample_images = np.array(sample_images).astype(np.float32)
 
