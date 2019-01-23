@@ -8,6 +8,7 @@ import tensorflow as tf
 import numpy as np
 from collections import namedtuple
 from data_factory.dataset_factory import ImageCollector
+import cv2
 
 from module import *
 from utils import *
@@ -196,11 +197,13 @@ class cyclegan(object):
                 batch_files = list(zip(dataA[1], dataB[1]))
                 batch_images = [load_train_data(batch_file, args.load_size, args.fine_size, is_testing=True) for batch_file in batch_files]
                 batch_images = np.array(batch_images).astype(np.float32)
+                seg = cv2.resize(dataA[2][0], (args.fine_size, args.fine_size))
+                seg = np.reshape(seg, (1, args.fine_size, args.fine_size, 1))
 
                 # Update G network and record fake outputs
                 fake_A, fake_B, _, summary_str = self.sess.run(
                     [self.fake_A, self.fake_B, self.g_optim, self.g_sum],
-                    feed_dict={self.real_data: batch_images, self.lr: lr, self.seg_data: dataA[2]})
+                    feed_dict={self.real_data: batch_images, self.lr: lr, self.seg_data: seg})
                 self.writer.add_summary(summary_str, counter)
                 [fake_A, fake_B] = self.pool([fake_A, fake_B])
 
