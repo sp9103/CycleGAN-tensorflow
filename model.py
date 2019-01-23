@@ -47,14 +47,18 @@ class cyclegan(object):
                                         [None, self.image_size, self.image_size,
                                          self.A_dim + self.B_dim],
                                         name='real_A_and_B_images')
+        self.seg_data = tf.placeholder(tf.float32,
+                                       [None, self.image_size, self.image_size, 1],
+                                       name='segment_images')
 
         self.real_A = self.real_data[:, :, :, :self.A_dim]
         self.real_B = self.real_data[:, :, :, self.A_dim:self.A_dim + self.B_dim]
 
-        self.fake_B = self.generator(self.real_A, self.options, self.B_dim, False, name="generatorA2B")
-        self.fake_A_ = self.generator(self.fake_B, self.options, self.A_dim, False, name="generatorB2A")
-        self.fake_A = self.generator(self.real_B, self.options, self.A_dim, True, name="generatorB2A")
-        self.fake_B_ = self.generator(self.fake_A, self.options, self.B_dim, True, name="generatorA2B")
+        # 실제 계산할 수 있는 seg. (self.fake_segB, self.fake_segA_)
+        self.fake_B, self.fake_segB = self.generator(self.real_A, self.options, self.B_dim, False, name="generatorA2B")     #simulator에서 출발하는 cycle
+        self.fake_A_, self.fake_segA_ = self.generator(self.fake_B, self.options, self.A_dim, False, name="generatorB2A")
+        self.fake_A, _ = self.generator(self.real_B, self.options, self.A_dim, True, name="generatorB2A")      #real에서 출발하는 cycle - self.fake_segA
+        self.fake_B_, _ = self.generator(self.fake_A, self.options, self.B_dim, True, name="generatorA2B")    # - self.fake_segB_
 
         self.DB_fake1 = self.discriminator(self.fake_B, self.options, reuse=False, name="discriminatorB1", layers=1)
         self.DA_fake1 = self.discriminator(self.fake_A, self.options, reuse=False, name="discriminatorA1", layers=1)
@@ -67,12 +71,16 @@ class cyclegan(object):
             + self.criterionGAN(self.DB_fake2, tf.ones_like(self.DB_fake2)) \
             + self.criterionGAN(self.DB_fake3, tf.ones_like(self.DB_fake3)) \
             + self.L1_lambda * abs_criterion(self.real_A, self.fake_A_) \
-            + self.L1_lambda * abs_criterion(self.real_B, self.fake_B_)
+            + self.L1_lambda * abs_criterion(self.real_B, self.fake_B_) \
+            + self.L1_lambda * abs_criterion(self.seg_data, self.fake_segB) \
+            + self.L1_lambda * abs_criterion(self.seg_data, self.fake_segA_)
         self.g_loss_b2a = self.criterionGAN(self.DA_fake1, tf.ones_like(self.DA_fake1)) \
             + self.criterionGAN(self.DA_fake2, tf.ones_like(self.DA_fake2)) \
             + self.criterionGAN(self.DA_fake3, tf.ones_like(self.DA_fake3)) \
             + self.L1_lambda * abs_criterion(self.real_A, self.fake_A_) \
-            + self.L1_lambda * abs_criterion(self.real_B, self.fake_B_)
+            + self.L1_lambda * abs_criterion(self.real_B, self.fake_B_) \
+            + self.L1_lambda * abs_criterion(self.seg_data, self.fake_segB) \
+            + self.L1_lambda * abs_criterion(self.seg_data, self.fake_segA_)
         self.g_loss = self.criterionGAN(self.DA_fake1, tf.ones_like(self.DA_fake1)) \
             + self.criterionGAN(self.DA_fake2, tf.ones_like(self.DA_fake2)) \
             + self.criterionGAN(self.DA_fake3, tf.ones_like(self.DA_fake3)) \
@@ -80,7 +88,9 @@ class cyclegan(object):
             + self.criterionGAN(self.DB_fake2, tf.ones_like(self.DB_fake2)) \
             + self.criterionGAN(self.DB_fake3, tf.ones_like(self.DB_fake3)) \
             + self.L1_lambda * abs_criterion(self.real_A, self.fake_A_) \
-            + self.L1_lambda * abs_criterion(self.real_B, self.fake_B_)
+            + self.L1_lambda * abs_criterion(self.real_B, self.fake_B_) \
+            + self.L1_lambda * abs_criterion(self.seg_data, self.fake_segB) \
+            + self.L1_lambda * abs_criterion(self.seg_data, self.fake_segA_)
 
         self.fake_A_sample = tf.placeholder(tf.float32,
                                             [None, self.image_size, self.image_size,
@@ -140,8 +150,8 @@ class cyclegan(object):
         self.test_B = tf.placeholder(tf.float32,
                                      [None, self.image_size, self.image_size,
                                       self.B_dim], name='test_B')
-        self.testB = self.generator(self.test_A, self.options, self.B_dim, True, name="generatorA2B")
-        self.testA = self.generator(self.test_B, self.options, self.A_dim, True, name="generatorB2A")
+        self.testB, self.test_segB = self.generator(self.test_A, self.options, self.B_dim, True, name="generatorA2B")
+        self.testA, self.test_segA = self.generator(self.test_B, self.options, self.A_dim, True, name="generatorB2A")
 
         t_vars = tf.trainable_variables()
         self.d_vars = [var for var in t_vars if 'discriminator' in var.name]
@@ -190,7 +200,7 @@ class cyclegan(object):
                 # Update G network and record fake outputs
                 fake_A, fake_B, _, summary_str = self.sess.run(
                     [self.fake_A, self.fake_B, self.g_optim, self.g_sum],
-                    feed_dict={self.real_data: batch_images, self.lr: lr})
+                    feed_dict={self.real_data: batch_images, self.lr: lr, self.seg_data: dataA[2]})
                 self.writer.add_summary(summary_str, counter)
                 [fake_A, fake_B] = self.pool([fake_A, fake_B])
 
