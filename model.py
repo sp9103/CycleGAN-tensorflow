@@ -259,9 +259,11 @@ class cyclegan(object):
         batch_files = list(zip(dataA[1], dataB[1]))
         sample_images = [load_train_data(batch_file, is_testing=True) for batch_file in batch_files]
         sample_images = np.array(sample_images).astype(np.float32)
+        seg = cv2.resize(dataA[2][0], (256, 256))
+        seg = np.reshape(seg, (1, 256, 256, 1))
 
-        fake_A, fake_B = self.sess.run(
-            [self.fake_A, self.fake_B],
+        fake_A, fake_B, fake_segB = self.sess.run(
+            [self.fake_A, self.fake_B, self.fake_segB],
             feed_dict={self.real_data: sample_images}
         )
 
@@ -270,10 +272,13 @@ class cyclegan(object):
 
         concat_B = np.concatenate((images[0], fake_B), axis=2)
         concat_A = np.concatenate((images[1], fake_A), axis=2)
+        concat_seg = np.concatenate((seg, fake_segB), axis=2)
         save_images(concat_A, [self.batch_size, 1],
                     './{}/A_{:02d}_{:04d}.jpg'.format(sample_dir, epoch, idx))
         save_images(concat_B, [self.batch_size, 1],
                     './{}/B_{:02d}_{:04d}.jpg'.format(sample_dir, epoch, idx))
+        save_images(concat_seg, [self.batch_size, 1],
+                    './{}/seg_{:02d}_{:04d}.jpg'.format(sample_dir, epoch, idx))
 
     def test(self, args):
         """Test cyclegan"""
