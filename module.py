@@ -143,13 +143,12 @@ def generator_resnet(image, options, output_dim, reuse=False, name="generator"):
         d2 = tf.pad(d2, [[0, 0], [3, 3], [3, 3], [0, 0]], "REFLECT")
         rgb = tf.nn.tanh(conv2d(d2, output_dim, 7, 1, padding='VALID', name='g_rgb_c'))
 
-        p = int((3 - 1) / 2)
-        ds1 = tf.pad(tf.nn.relu(rgb), [[0, 0], [p, p], [p, p], [0, 0]], "REFLECT")
-        ds1 = instance_norm(conv2d(ds1, output_dim, 3, 1, padding='VALID', name='g_ds1_dc'), 'g_ds1_bn')
-        ds2 = tf.pad(tf.nn.relu(ds1), [[0, 0], [p, p], [p, p], [0, 0]], "REFLECT")
-        ds2 = instance_norm(conv2d(ds2, output_dim, 3, 1, padding='VALID', name='g_ds2_dc'), 'g_ds2_bn')
+        ds1 = deconv2d(r9, options.gf_dim * 2, 3, 2, name='g_ds1_dc')
+        ds1 = tf.nn.relu(instance_norm(ds1, 'g_ds1_bn'))
+        ds2 = deconv2d(ds1, options.gf_dim, 3, 2, name='g_ds2_dc')
+        ds2 = tf.nn.relu(instance_norm(ds2, 'g_ds2_bn'))
         ds2 = tf.pad(ds2, [[0, 0], [3, 3], [3, 3], [0, 0]], "REFLECT")
-        seg = tf.nn.tanh(conv2d(ds2, 1, 7, 1, padding='VALID', name='g_seg_c'))
+        seg = tf.nn.tanh(conv2d(ds2, output_dim, 7, 1, padding='VALID', name='g_seg_c'))
 
         # ds1 = deconv2d(rgb, options.gf_dim * 2, 3, 2, name='g_ds1_dc')
         # ds1 = tf.nn.relu(instance_norm(ds1, 'g_ds1_bn'))
