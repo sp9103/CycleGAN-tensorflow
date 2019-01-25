@@ -148,7 +148,7 @@ def generator_resnet(image, options, output_dim, reuse=False, name="generator"):
         ds2 = deconv2d(ds1, options.gf_dim, 3, 2, name='g_ds2_dc')
         ds2 = tf.nn.relu(instance_norm(ds2, 'g_ds2_bn'))
         ds2 = tf.pad(ds2, [[0, 0], [3, 3], [3, 3], [0, 0]], "REFLECT")
-        seg = tf.nn.tanh(conv2d(ds2, output_dim, 7, 1, padding='VALID', name='g_seg_c'))
+        seg = tf.nn.tanh(conv2d(ds2, 1, 7, 1, padding='VALID', name='g_seg_c'))
 
         # ds1 = deconv2d(rgb, options.gf_dim * 2, 3, 2, name='g_ds1_dc')
         # ds1 = tf.nn.relu(instance_norm(ds1, 'g_ds1_bn'))
