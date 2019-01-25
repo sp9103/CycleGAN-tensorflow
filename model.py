@@ -58,7 +58,7 @@ class cyclegan(object):
         # 실제 계산할 수 있는 seg. (self.fake_segB, self.fake_segA_)
         self.fake_B, self.fake_segB = self.generator(self.real_A, self.options, self.B_dim, False, name="generatorA2B")     #simulator에서 출발하는 cycle
         self.fake_A_, self.fake_segA_ = self.generator(self.fake_B, self.options, self.A_dim, False, name="generatorB2A")
-        self.fake_A, _ = self.generator(self.real_B, self.options, self.A_dim, True, name="generatorB2A")      #real에서 출발하는 cycle - self.fake_segA
+        self.fake_A, self.fake_segA = self.generator(self.real_B, self.options, self.A_dim, True, name="generatorB2A")      #real에서 출발하는 cycle - self.fake_segA
         self.fake_B_, _ = self.generator(self.fake_A, self.options, self.B_dim, True, name="generatorA2B")    # - self.fake_segB_
 
         self.DB_fake1 = self.discriminator(self.fake_B, self.options, reuse=False, name="discriminatorB1", layers=1)
@@ -262,23 +262,22 @@ class cyclegan(object):
         seg = cv2.resize(dataA[2][0], (256, 256))
         seg = np.reshape(seg, (1, 256, 256, 1))
 
-        fake_A, fake_B, fake_segB = self.sess.run(
-            [self.fake_A, self.fake_B, self.fake_segB],
+        fake_A, fake_B, fake_segA, fake_segB = self.sess.run(
+            [self.fake_A, self.fake_B, self.fake_segA, self.fake_segB],
             feed_dict={self.real_data: sample_images}
         )
 
-
         images = np.split(sample_images, [3], axis=3)
 
-        concat_B = np.concatenate((images[0], fake_B), axis=2)
-        concat_A = np.concatenate((images[1], fake_A), axis=2)
-        concat_seg = np.concatenate((seg, fake_segB), axis=2)
+        fake_segA = np.reshape(cv2.cvtColor(fake_segA[0], cv2.COLOR_GRAY2RGB), (1, 256, 256, 3))
+        fake_segB = np.reshape(cv2.cvtColor(fake_segB[0], cv2.COLOR_GRAY2RGB), (1, 256, 256, 3))
+
+        concat_B = np.concatenate((images[0], fake_B, fake_segB), axis=2)
+        concat_A = np.concatenate((images[1], fake_A, fake_segA), axis=2)
         save_images(concat_A, [self.batch_size, 1],
                     './{}/A_{:02d}_{:04d}.jpg'.format(sample_dir, epoch, idx))
         save_images(concat_B, [self.batch_size, 1],
                     './{}/B_{:02d}_{:04d}.jpg'.format(sample_dir, epoch, idx))
-        save_images(concat_seg, [self.batch_size, 1],
-                    './{}/seg_{:02d}_{:04d}.jpg'.format(sample_dir, epoch, idx))
 
     def test(self, args):
         """Test cyclegan"""
