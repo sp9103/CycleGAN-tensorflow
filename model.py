@@ -1,6 +1,7 @@
 from __future__ import division
 import os, sys
 sys.path.append(os.path.abspath("./"))
+sys.path.append(os.path.realpath(os.path.dirname(__file__)))
 
 import time
 from glob import glob
