@@ -55,11 +55,17 @@ class cyclegan(object):
         self.real_A = self.real_data[:, :, :, :self.A_dim]
         self.real_B = self.real_data[:, :, :, self.A_dim:self.A_dim + self.B_dim]
 
-        # 실제 계산할 수 있는 seg. (self.fake_segB, self.fake_segA_)
-        self.fake_B, self.fake_segB = self.generator(self.real_A, self.options, self.B_dim, False, name="generatorA2B")     #simulator에서 출발하는 cycle
-        self.fake_A_, self.fake_segA_ = self.generator(self.fake_B, self.options, self.A_dim, False, name="generatorB2A")
-        self.fake_A, self.fake_segA = self.generator(self.real_B, self.options, self.A_dim, True, name="generatorB2A")      #real에서 출발하는 cycle - self.fake_segA
-        self.fake_B_, _ = self.generator(self.fake_A, self.options, self.B_dim, True, name="generatorA2B")    # - self.fake_segB_
+        self.fake_B = self.generator(self.real_A, self.options, self.B_dim, False, name="generatorA2B")     #simulator에서 출발하는 cycle
+        self.fake_A_ = self.generator(self.fake_B, self.options, self.A_dim, False, name="generatorB2A")
+        self.fake_A = self.generator(self.real_B, self.options, self.A_dim, True, name="generatorB2A")      #real에서 출발하는 cycle - self.fake_segA
+        self.fake_B_ = self.generator(self.fake_A, self.options, self.B_dim, True, name="generatorA2B")    # - self.fake_segB_
+
+        self.real_seg_A = seg_generator_resnet(self.real_A, self.options, 1, False, name="segnetA")         # 학습할 수 있는 것 1 -> segnet을 학습할 때 사용함
+        self.fake_seg_B = seg_generator_resnet(self.fake_B, self.options, 1, False, name="segnetB")          # 학습할 수 있는 것 2 ? (일단 제외) -> 이게 되면 A, B 도메인 둘다 sematic seg가 가능해진다.
+        self.fake_seg_A_ = seg_generator_resnet(self.fake_A_, self.options, 1, True, name="segnetA")        # 학습할 수 있는 것 3 -> g step에서 사용함.
+        self.real_seg_B = seg_generator_resnet(self.real_B, self.options, 1, True, name="segnetB")
+        self.fake_seg_A = seg_generator_resnet(self.fake_A, self.options, 1, True, name="segnetA")
+        self.fake_seg_B_ = seg_generator_resnet(self.fake_B_, self.options, 1, True, name="segnetB")
 
         self.DB_fake1 = self.discriminator(self.fake_B, self.options, reuse=False, name="discriminatorB1", layers=1)
         self.DA_fake1 = self.discriminator(self.fake_A, self.options, reuse=False, name="discriminatorA1", layers=1)
@@ -73,15 +79,15 @@ class cyclegan(object):
             + self.criterionGAN(self.DB_fake3, tf.ones_like(self.DB_fake3)) \
             + self.L1_lambda * abs_criterion(self.real_A, self.fake_A_) \
             + self.L1_lambda * abs_criterion(self.real_B, self.fake_B_) \
-            + self.L1_lambda * abs_criterion(self.seg_data, self.fake_segB) \
-            + self.L1_lambda * abs_criterion(self.seg_data, self.fake_segA_)
+            + self.L1_lambda * abs_criterion(self.real_seg_A, self.fake_seg_A_) \
+            + self.L1_lambda * abs_criterion(self.real_seg_B, self.fake_seg_B_)
         self.g_loss_b2a = self.criterionGAN(self.DA_fake1, tf.ones_like(self.DA_fake1)) \
             + self.criterionGAN(self.DA_fake2, tf.ones_like(self.DA_fake2)) \
             + self.criterionGAN(self.DA_fake3, tf.ones_like(self.DA_fake3)) \
             + self.L1_lambda * abs_criterion(self.real_A, self.fake_A_) \
             + self.L1_lambda * abs_criterion(self.real_B, self.fake_B_) \
-            + self.L1_lambda * abs_criterion(self.seg_data, self.fake_segB) \
-            + self.L1_lambda * abs_criterion(self.seg_data, self.fake_segA_)
+            + self.L1_lambda * abs_criterion(self.real_seg_A, self.fake_seg_A_) \
+            + self.L1_lambda * abs_criterion(self.real_seg_B, self.fake_seg_B_)
         self.g_loss = self.criterionGAN(self.DA_fake1, tf.ones_like(self.DA_fake1)) \
             + self.criterionGAN(self.DA_fake2, tf.ones_like(self.DA_fake2)) \
             + self.criterionGAN(self.DA_fake3, tf.ones_like(self.DA_fake3)) \
@@ -90,8 +96,13 @@ class cyclegan(object):
             + self.criterionGAN(self.DB_fake3, tf.ones_like(self.DB_fake3)) \
             + self.L1_lambda * abs_criterion(self.real_A, self.fake_A_) \
             + self.L1_lambda * abs_criterion(self.real_B, self.fake_B_) \
-            + self.L1_lambda * abs_criterion(self.seg_data, self.fake_segB) \
-            + self.L1_lambda * abs_criterion(self.seg_data, self.fake_segA_)
+            + self.L1_lambda * abs_criterion(self.real_seg_A, self.fake_seg_A_) \
+            + self.L1_lambda * abs_criterion(self.real_seg_B, self.fake_seg_B_) \
+            + self.L1_lambda * abs_criterion(self.fake_seg_A, self.real_seg_B)
+
+        # 실험1. label이 확실한 simulator data만 가지고 학습한다.
+        self.seg_loss = self.L1_lambda * abs_criterion(self.real_seg_A, self.seg_data) \
+            + self.L1_lambda * abs_criterion(self.fake_seg_B, self.seg_data)
 
         self.fake_A_sample = tf.placeholder(tf.float32,
                                             [None, self.image_size, self.image_size,
@@ -144,6 +155,7 @@ class cyclegan(object):
              self.db_loss_sum, self.db_loss_real_sum, self.db_loss_fake_sum,
              self.d_loss_sum]
         )
+        self.s_sum = tf.summary.scalar("seg_loss", self.seg_loss)
 
         self.test_A = tf.placeholder(tf.float32,
                                      [None, self.image_size, self.image_size,
@@ -151,12 +163,15 @@ class cyclegan(object):
         self.test_B = tf.placeholder(tf.float32,
                                      [None, self.image_size, self.image_size,
                                       self.B_dim], name='test_B')
-        self.testB, self.test_segB = self.generator(self.test_A, self.options, self.B_dim, True, name="generatorA2B")
-        self.testA, self.test_segA = self.generator(self.test_B, self.options, self.A_dim, True, name="generatorB2A")
+        self.testB = self.generator(self.test_A, self.options, self.B_dim, True, name="generatorA2B")
+        self.testA = self.generator(self.test_B, self.options, self.A_dim, True, name="generatorB2A")
+        self.test_seg_A = seg_generator_resnet(self.test_A, self.options, 1, True, name="segnetA")
+        self.test_seg_B = seg_generator_resnet(self.test_B, self.options, 1, True, name="segnetB")
 
         t_vars = tf.trainable_variables()
         self.d_vars = [var for var in t_vars if 'discriminator' in var.name]
         self.g_vars = [var for var in t_vars if 'generator' in var.name]
+        self.s_vars = [var for var in t_vars if 'segnet' in var.name]
         for var in t_vars: print(var.name)
 
     def train(self, args):
@@ -164,6 +179,8 @@ class cyclegan(object):
         self.lr = tf.placeholder(tf.float32, None, name='learning_rate')
         self.d_optim = tf.train.AdamOptimizer(self.lr, beta1=args.beta1) \
             .minimize(self.d_loss, var_list=self.d_vars)
+        self.seg_optim = tf.train.AdamOptimizer(self.lr, beta1=args.beta1) \
+            .minimize(self.seg_loss, var_list=self.s_vars)
         self.g_optim = tf.train.AdamOptimizer(self.lr, beta1=args.beta1) \
             .minimize(self.g_loss, var_list=self.g_vars)
 
@@ -201,10 +218,17 @@ class cyclegan(object):
                 seg = np.reshape(seg, (1, args.fine_size, args.fine_size, 1))
 
                 # Update G network and record fake outputs
-                fake_A, fake_B, _, summary_str = self.sess.run(
-                    [self.fake_A, self.fake_B, self.g_optim, self.g_sum],
+                fake_A, fake_B, _, summary_str, gen_seg_A = self.sess.run(
+                    [self.fake_A, self.fake_B, self.g_optim, self.g_sum, self.fake_seg_A_],
                     feed_dict={self.real_data: batch_images, self.lr: lr, self.seg_data: seg})
                 self.writer.add_summary(summary_str, counter)
+
+                # Update Seg network
+                _, summary_str = self.sess.run(
+                    [self.seg_optim, self.s_sum],
+                    feed_dict={self.real_data: batch_images, self.lr: lr, self.seg_data: seg})
+                self.writer.add_summary(summary_str, counter)
+
                 [fake_A, fake_B] = self.pool([fake_A, fake_B])
 
                 # Update D network
@@ -262,22 +286,34 @@ class cyclegan(object):
         seg = cv2.resize(dataA[2][0], (256, 256))
         seg = np.reshape(seg, (1, 256, 256, 1))
 
-        fake_A, fake_B, fake_segA, fake_segB = self.sess.run(
-            [self.fake_A, self.fake_B, self.fake_segA, self.fake_segB],
+        fake_A, fake_B, real_seg_A, fake_seg_A, fake_seg_B, \
+        fake_seg_A_, fake_A_, fake_B_, real_seg_B, fake_seg_B_ = self.sess.run(
+            [self.fake_A, self.fake_B, self.real_seg_A, self.fake_seg_A, self.fake_seg_B,
+             self.fake_seg_A_, self.fake_A_, self.fake_B_, self.real_seg_B, self.fake_seg_B_],
             feed_dict={self.real_data: sample_images}
         )
 
         images = np.split(sample_images, [3], axis=3)
 
-        fake_segA = np.reshape(cv2.cvtColor(fake_segA[0], cv2.COLOR_GRAY2RGB), (1, 256, 256, 3))
-        fake_segB = np.reshape(cv2.cvtColor(fake_segB[0], cv2.COLOR_GRAY2RGB), (1, 256, 256, 3))
+        real_seg_A = np.reshape(cv2.cvtColor(real_seg_A[0], cv2.COLOR_GRAY2RGB), (1, 256, 256, 3))
+        real_seg_B = np.reshape(cv2.cvtColor(real_seg_B[0], cv2.COLOR_GRAY2RGB), (1, 256, 256, 3))
+        fake_seg_A = np.reshape(cv2.cvtColor(fake_seg_A[0], cv2.COLOR_GRAY2RGB), (1, 256, 256, 3))
+        fake_seg_B = np.reshape(cv2.cvtColor(fake_seg_B[0], cv2.COLOR_GRAY2RGB), (1, 256, 256, 3))
+        fake_seg_A_ = np.reshape(cv2.cvtColor(fake_seg_A_[0], cv2.COLOR_GRAY2RGB), (1, 256, 256, 3))
+        fake_seg_B_ = np.reshape(cv2.cvtColor(fake_seg_B_[0], cv2.COLOR_GRAY2RGB), (1, 256, 256, 3))
 
-        concat_B = np.concatenate((images[0], fake_B, fake_segB), axis=2)
-        concat_A = np.concatenate((images[1], fake_A, fake_segA), axis=2)
-        save_images(concat_A, [self.batch_size, 1],
-                    './{}/A_{:02d}_{:04d}.jpg'.format(sample_dir, epoch, idx))
-        save_images(concat_B, [self.batch_size, 1],
-                    './{}/B_{:02d}_{:04d}.jpg'.format(sample_dir, epoch, idx))
+        # concat_B = np.concatenate((images[0], fake_B, real_seg_A), axis=2)
+        # concat_A = np.concatenate((images[1], fake_A, fake_seg_A), axis=2)
+        concat_cycleABA = np.concatenate((images[0], fake_B, fake_A_, real_seg_A, fake_seg_B, fake_seg_A_), axis=2)
+        concat_cycleBAB = np.concatenate((images[1], fake_A, fake_B_, real_seg_B, fake_seg_A, fake_seg_B_), axis=2)
+        # save_images(concat_A, [self.batch_size, 1],
+        #             './{}/A_{:02d}_{:04d}.jpg'.format(sample_dir, epoch, idx))
+        # save_images(concat_B, [self.batch_size, 1],
+        #             './{}/B_{:02d}_{:04d}.jpg'.format(sample_dir, epoch, idx))
+        save_images(concat_cycleBAB, [self.batch_size, 1],
+                    './{}/cycleBAB_{:02d}_{:04d}.jpg'.format(sample_dir, epoch, idx))
+        save_images(concat_cycleABA, [self.batch_size, 1],
+                    './{}/cycleABA_{:02d}_{:04d}.jpg'.format(sample_dir, epoch, idx))
 
     def test(self, args):
         """Test cyclegan"""
